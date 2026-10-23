@@ -29,8 +29,9 @@ jobs:
 
       - name: Create initial tag if missing
         run: |
+          # Tag the root commit, so that all commits count for the first release
           if [ -z "$(git tag -l)" ]; then
-            git tag v0.0.0
+            git tag v0.0.0 "$(git rev-list --max-parents=0 HEAD)"
           fi
 
       - name: Run semantic-release
