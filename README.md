@@ -1,6 +1,6 @@
 # solarfocus-exporter
 
-Prometheus exporter for SOLARFOCUS heating systems with the **ecomanager-touch** controller (pellet boilers such as pellet<sup>elegance</sup>/octo<sup>plus</sup>, therminator, vamp<sup>air</sup>), read via **Modbus TCP**.
+Prometheus exporter for SOLARFOCUS heating systems with the **ecomanager-touch** controller (pellet boilers such as pellet elegance, octo plus, therminator, vamp air), read via **Modbus TCP**.
 
 Minimal by design: a single static Go binary in a `scratch` image (~10 MB), one dependency (`prometheus/client_golang`), its own tiny Modbus TCP client and read-only access to the controller.
 
