@@ -39,10 +39,13 @@ Endpoints: `/metrics`, `/healthz`.
 
 A scrape takes about one second (the controller is slow); a scrape interval of 30-60s is recommended.
 
+### Binaries
+
+Static binaries for Linux, macOS and Windows (amd64/arm64) are attached to every [release](https://github.com/slauger/solarfocus-exporter/releases), together with `checksums.txt`.
+
 ### Container
 
 ```bash
-make image
 docker run --rm -p 9851:9851 -e SOLARFOCUS_MODBUS_ADDRESS=10.0.0.230:502 ghcr.io/slauger/solarfocus-exporter:<version>
 ```
 

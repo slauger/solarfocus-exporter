@@ -37,6 +37,6 @@ jobs:
       id-token: write
     uses: ./.github/workflows/_container-build.yaml
     with:
-      image: registry.apps.lnxlabs.de/solarfocus-exporter
+      image: ghcr.io/slauger/solarfocus-exporter
       dockerfile: Containerfile
       push: false

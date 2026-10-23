@@ -2,21 +2,11 @@ name: container-build
 
 on:
   workflow_call:
-    secrets:
-      REGISTRY_USERNAME:
-        required: false
-      REGISTRY_PASSWORD:
-        required: false
     inputs:
       image:
         description: Fully qualified image name
         required: true
         type: string
-      registry:
-        description: Registry to log in to when pushing
-        required: false
-        type: string
-        default: registry.apps.lnxlabs.de
       dockerfile:
         description: Path to the Containerfile
         required: true
@@ -86,13 +76,13 @@ jobs:
             echo "tag=${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Log in to registry
+      - name: Log in to GHCR
         if: ${{ inputs.push }}
         uses: docker/login-action@v3
         with:
-          registry: ${{ inputs.registry }}
-          username: ${{ secrets.REGISTRY_USERNAME }}
-          password: ${{ secrets.REGISTRY_PASSWORD }}
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build and push
         id: build
