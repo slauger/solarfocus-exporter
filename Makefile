@@ -16,7 +16,7 @@ test: ## Run tests with race detector
 
 cover: ## Tests with coverage threshold (80%)
 	go test -race -coverprofile=cover.out ./...
-	./hack/check-coverage.sh cover.out 80
+	./hack/check-coverage.sh 80
 
 lint: ## golangci-lint
 	golangci-lint run
