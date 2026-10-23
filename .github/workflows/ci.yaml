@@ -1,0 +1,42 @@
+name: ci
+
+on:
+  push:
+    branches:
+      - main
+    paths-ignore:
+      - '**/*.md'
+      - 'LICENSE'
+      - 'renovate.json'
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  unicode-lint:
+    uses: ./.github/workflows/_unicode-lint.yaml
+
+  go-checks:
+    uses: ./.github/workflows/_go.yaml
+
+  shellcheck:
+    uses: ./.github/workflows/_shellcheck.yaml
+
+  # Build only (no push) to verify the Containerfile on every change
+  container-build:
+    needs:
+      - unicode-lint
+      - go-checks
+      - shellcheck
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+    uses: ./.github/workflows/_container-build.yaml
+    with:
+      image: registry.apps.lnxlabs.de/solarfocus-exporter
+      dockerfile: Containerfile
+      push: false
