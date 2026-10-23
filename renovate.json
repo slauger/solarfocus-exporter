@@ -1,32 +1,55 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "extends": ["config:recommended"],
-  "labels": ["dependencies"],
+  "extends": [
+    "config:recommended"
+  ],
+  "labels": [
+    "dependencies"
+  ],
   "dockerfile": {
-    "managerFilePatterns": ["/(^|/)Containerfile$/"]
+    "managerFilePatterns": [
+      "/(^|/)Containerfile$/"
+    ]
   },
   "packageRules": [
     {
-      "matchDatasources": ["golang-version"],
+      "matchDatasources": [
+        "golang-version"
+      ],
       "groupName": "go-version"
     },
     {
-      "matchDatasources": ["go"],
+      "matchDatasources": [
+        "go"
+      ],
       "groupName": "go-dependencies"
     },
     {
-      "matchManagers": ["github-actions"],
-      "groupName": "github-actions"
+      "matchManagers": [
+        "github-actions"
+      ],
+      "groupName": "github-actions",
+      "automerge": true,
+      "description": "Actions updates incl. major versions are merged automatically once CI is green"
     },
     {
-      "matchDatasources": ["docker"],
+      "matchDatasources": [
+        "docker"
+      ],
       "groupName": "container-images"
     },
     {
-      "matchUpdateTypes": ["minor", "patch", "pin", "digest"],
+      "matchUpdateTypes": [
+        "minor",
+        "patch",
+        "pin",
+        "digest"
+      ],
       "automerge": true
     }
   ],
   "platformAutomerge": false,
-  "postUpdateOptions": ["gomodTidy"]
+  "postUpdateOptions": [
+    "gomodTidy"
+  ]
 }
