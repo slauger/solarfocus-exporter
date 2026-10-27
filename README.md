@@ -41,7 +41,7 @@ A scrape takes about one second (the controller is slow); a scrape interval of 3
 
 ### Binaries
 
-Static binaries for Linux, macOS and Windows (amd64/arm64) are attached to every [release](https://github.com/slauger/solarfocus-exporter/releases), together with `checksums.txt`.
+Static binaries for Linux, macOS and Windows (amd64/arm64) are attached to every [release](https://github.com/slauger/solarfocus-exporter/releases), together with `checksums.txt` and a CycloneDX SBOM per binary (`solarfocus-exporter_<version>_<os>_<arch>.cdx.json`).
 
 ### Container
 
@@ -105,6 +105,36 @@ Solar and heat pump registers are documented by SOLARFOCUS but not (yet) exporte
 - alert: HeatingUnreachable
   expr: solarfocus_up == 0 or absent(solarfocus_up)
   for: 10m
+```
+
+## Supply chain
+
+Released images are signed with [cosign](https://docs.sigstore.dev/cosign/) keyless signing (GitHub Actions OIDC). The signature is made against the multi-arch index digest, so the version tag and `:latest` are covered by the same signature:
+
+```bash
+cosign verify ghcr.io/slauger/solarfocus-exporter:<version> \
+  --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+  --certificate-identity-regexp 'github\.com/slauger/solarfocus-exporter'
+```
+
+Each platform image carries the unsigned SPDX SBOM and SLSA provenance that BuildKit attaches, plus a CycloneDX SBOM generated with [syft](https://github.com/anchore/syft) and attached as a signed cosign attestation, e.g. for [Dependency-Track](https://dependencytrack.org/). An SBOM describes a single architecture, and `cosign verify-attestation` has no `--platform` flag, so resolve the platform digest first:
+
+```bash
+DIGEST=$(crane digest --platform linux/amd64 ghcr.io/slauger/solarfocus-exporter:<version>)
+cosign verify-attestation "ghcr.io/slauger/solarfocus-exporter@${DIGEST}" \
+  --type cyclonedx \
+  --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+  --certificate-identity-regexp 'github\.com/slauger/solarfocus-exporter' \
+  | jq -r '.payload' | base64 -d | jq '.predicate' > sbom.cdx.json
+```
+
+Every release also carries the image SBOMs as assets, one file per architecture and format:
+
+```text
+solarfocus-exporter-<version>-linux-amd64.cdx.json    # CycloneDX
+solarfocus-exporter-<version>-linux-amd64.spdx.json   # SPDX
+solarfocus-exporter-<version>-linux-arm64.cdx.json
+solarfocus-exporter-<version>-linux-arm64.spdx.json
 ```
 
 ## Development

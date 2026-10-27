@@ -97,6 +97,8 @@ jobs:
             ${{ inputs.image }}:latest
           build-args: |
             VERSION=${{ steps.meta.outputs.tag }}
+          provenance: true
+          sbom: true
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -110,3 +112,64 @@ jobs:
           DIGEST: ${{ steps.build.outputs.digest }}
           IMAGE: ${{ inputs.image }}
         run: cosign sign --yes "${IMAGE}@${DIGEST}"
+
+      - name: Install syft
+        if: ${{ inputs.push }}
+        uses: anchore/sbom-action/download-syft@v0.24.3
+
+      # BuildKit already attaches an SPDX SBOM to every platform image, but
+      # unsigned and unreadable for CycloneDX-only consumers such as
+      # Dependency-Track. syft generates both formats from the pushed
+      # per-platform images; they are also published as release assets.
+      - name: Generate SBOMs
+        id: sbom
+        if: ${{ inputs.push }}
+        env:
+          # Packages only: without this, every file becomes a CycloneDX component
+          SYFT_FILE_METADATA_SELECTION: none
+          DIGEST: ${{ steps.build.outputs.digest }}
+          IMAGE: ${{ inputs.image }}
+          PLATFORMS: ${{ inputs.platforms }}
+          VERSION: ${{ steps.meta.outputs.tag }}
+        run: |
+          NAME="${IMAGE##*/}"
+          echo "name=${NAME}" >> "$GITHUB_OUTPUT"
+          INDEX=$(docker buildx imagetools inspect "${IMAGE}@${DIGEST}" --format '{{json .Manifest}}')
+
+          mkdir -p sbom
+          for PLATFORM in ${PLATFORMS//,/ }; do
+            SUFFIX="${PLATFORM//\//-}"
+            PLATFORM_DIGEST=$(jq -r --arg os "${PLATFORM%%/*}" --arg arch "${PLATFORM#*/}" \
+              '.manifests[] | select(.platform.os == $os and .platform.architecture == $arch) | .digest' <<< "${INDEX}")
+            if [[ -z "${PLATFORM_DIGEST}" ]]; then
+              echo "::error::no ${PLATFORM} image in ${IMAGE}@${DIGEST}"
+              exit 1
+            fi
+            BASE="sbom/${NAME}-${VERSION}-${SUFFIX}"
+            syft scan "registry:${IMAGE}@${PLATFORM_DIGEST}" \
+              --source-name "${IMAGE}" --source-version "${VERSION}" \
+              -o "cyclonedx-json=${BASE}.cdx.json" \
+              -o "spdx-json=${BASE}.spdx.json"
+            echo "${PLATFORM_DIGEST}" > "${BASE}.digest"
+          done
+
+      # An SBOM describes one platform image, so it is attested against the
+      # platform digest rather than the index. :latest points at the same
+      # platform images, so these attestations cover it as well.
+      - name: Attest CycloneDX SBOMs with cosign (keyless)
+        if: ${{ inputs.push && inputs.sign }}
+        env:
+          IMAGE: ${{ inputs.image }}
+        run: |
+          for CDX in sbom/*.cdx.json; do
+            PLATFORM_DIGEST=$(cat "${CDX%.cdx.json}.digest")
+            cosign attest --yes --type cyclonedx --predicate "${CDX}" "${IMAGE}@${PLATFORM_DIGEST}"
+          done
+
+      - name: Upload SBOMs
+        if: ${{ inputs.push }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: sbom-${{ steps.sbom.outputs.name }}
+          path: sbom/*.json
+          retention-days: 7
