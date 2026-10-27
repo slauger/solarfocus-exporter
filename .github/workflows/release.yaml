@@ -1,7 +1,14 @@
 name: release
 
 on:
+  push:
+    branches: [main]
   workflow_dispatch:
+
+# Merges in quick succession release one after another, not in parallel.
+concurrency:
+  group: release
+  cancel-in-progress: false
 
 permissions:
   contents: read
@@ -58,7 +65,31 @@ jobs:
       image: ghcr.io/slauger/solarfocus-exporter
       dockerfile: Containerfile
       push: true
+      sign: true
       tag: ${{ needs.semantic-release.outputs.version }}
+
+  # Per-platform image SBOMs from the container job, attached to the release
+  sbom-assets:
+    needs:
+      - semantic-release
+      - container
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download SBOM artifacts
+        uses: actions/download-artifact@v8
+        with:
+          pattern: sbom-*
+          path: sbom
+          merge-multiple: true
+
+      - name: Upload to release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          VERSION: ${{ needs.semantic-release.outputs.version }}
+        run: gh release upload "v${VERSION}" sbom/*.json --clobber
 
   # Static binaries for common platforms, attached to the GitHub release
   binaries:
@@ -76,8 +107,13 @@ jobs:
         with:
           go-version-file: go.mod
 
+      - name: Install syft
+        uses: anchore/sbom-action/download-syft@v0.24.3
+
       - name: Build
         env:
+          # Packages only: without this, every file becomes a CycloneDX component
+          SYFT_FILE_METADATA_SELECTION: none
           VERSION: ${{ needs.semantic-release.outputs.version }}
         run: |
           mkdir -p dist
@@ -91,6 +127,10 @@ jobs:
             CGO_ENABLED=0 GOOS=$os GOARCH=$arch go build -trimpath \
               -ldflags "-s -w -X main.version=${VERSION}" \
               -o "build/${name}/solarfocus-exporter${ext}" ./cmd/solarfocus-exporter
+            # CycloneDX SBOM of the binary, from its embedded Go build info
+            syft scan "file:build/${name}/solarfocus-exporter${ext}" \
+              --source-name solarfocus-exporter --source-version "${VERSION}" \
+              -o "cyclonedx-json=dist/${name}.cdx.json"
             cp LICENSE README.md "build/${name}/"
             if [ "$os" = windows ]; then
               (cd build && zip -qr "../dist/${name}.zip" "${name}")
