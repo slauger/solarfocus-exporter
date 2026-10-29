@@ -2,3 +2,6 @@ bin/
 cover.out
 *.test
 .DS_Store
+# release build output, must not make the checkout dirty
+/build/
+/dist/
