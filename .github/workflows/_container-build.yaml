@@ -119,7 +119,7 @@ jobs:
 
       - name: Install syft
         if: ${{ inputs.push }}
-        uses: anchore/sbom-action/download-syft@v0.24.3
+        uses: anchore/sbom-action/download-syft@v0.24.4
 
       # BuildKit already attaches an SPDX SBOM to every platform image, but
       # unsigned and unreadable for CycloneDX-only consumers such as
