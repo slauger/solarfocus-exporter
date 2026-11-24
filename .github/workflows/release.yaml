@@ -112,7 +112,7 @@ jobs:
           go-version-file: go.mod
 
       - name: Install syft
-        uses: anchore/sbom-action/download-syft@v0.24.3
+        uses: anchore/sbom-action/download-syft@v0.24.4
 
       - name: Build
         env:
